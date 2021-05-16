@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 
 pragma solidity >=0.7.0 <0.9.0;
+pragma experimental ABIEncoderV2;
 
 contract TSVoteManager {
     
@@ -38,12 +39,22 @@ contract TSVoteManager {
     mapping(bytes32 => LabelsVote) public keyTolabelsVoteStruct;
     bytes32[] public labelsVoteList;
     
+    struct LabelsVoteInput {
+        bytes32 cid;
+        uint8 adult;
+        uint8 suggestive;
+        uint8 violence;
+        uint8 disturbing;
+        uint8 hate;
+    }
+    
     /////////////////
     // Events
     /////////////////
     
     event NewVoter(address sender);
     event NewLabelsVote(address sender, bytes32 labelsVoteKey);
+    event UpdatedLabelsVote(address sender, bytes32 labelsVoteKey);
     
     /////////////////
     // Public view functions
@@ -58,12 +69,10 @@ contract TSVoteManager {
     }
     
     function isVoter(address _voterAddress) public view returns(bool) {
-        if (voterList.length == 0) return false;
         return addresstoVoterStruct[_voterAddress].voterAddress == _voterAddress;
     }
     
     function isLabelsVote(bytes32 _key) public view returns(bool) {
-        if (labelsVoteList.length == 0) return false;
         return keyTolabelsVoteStruct[_key].key == _key;
     }
     
@@ -89,25 +98,32 @@ contract TSVoteManager {
         return true;
     }
     
-    function createLabelsVote(bytes32 _cid, uint8 _adult, uint8 _suggestive, uint8 _violence, uint8 _disturbing, uint8 _hate) public returns(bool success) {
+    function createLabelsVotes(LabelsVoteInput[] memory _labelsVoteInputs) public returns(bool success) {
         require (isVoter(msg.sender), "No voter exists for this address");
-        bytes32 key = keccak256(abi.encodePacked(msg.sender, _cid));
-        require (!isLabelsVote(key), "Vote already exists for this address");
-        keyTolabelsVoteStruct[key] = LabelsVote({
-            key: key,
-            voter: msg.sender,
-            cid: _cid,
-            adult: _adult,
-            suggestive: _suggestive,
-            violence: _violence,
-            disturbing: _disturbing,
-            hate: _hate
-        });
-        labelsVoteList.push(key);
-        addresstoVoterStruct[msg.sender].labelsVoteKeys.push(key);
-        emit NewLabelsVote(msg.sender, key);
+        for (uint i = 0; i < _labelsVoteInputs.length; i++) {
+            bytes32 key = keccak256(abi.encodePacked(msg.sender, _labelsVoteInputs[i].cid));
+            bool isExistingVote = isLabelsVote(key);
+            keyTolabelsVoteStruct[key] = LabelsVote({
+                    key: key,
+                    voter: msg.sender,
+                    cid: _labelsVoteInputs[i].cid,
+                    adult: _labelsVoteInputs[i].adult,
+                    suggestive: _labelsVoteInputs[i].suggestive,
+                    violence: _labelsVoteInputs[i].violence,
+                    disturbing: _labelsVoteInputs[i].disturbing,
+                    hate: _labelsVoteInputs[i].hate
+                });
+            if (!isExistingVote) {
+                labelsVoteList.push(key);
+                addresstoVoterStruct[msg.sender].labelsVoteKeys.push(key);
+                emit NewLabelsVote(msg.sender, key);
+            }
+            else {
+                emit UpdatedLabelsVote(msg.sender, key);
+            }
+        }
         return true;
     }
     
-    // TODO - add way to update a vote
+    // TODO - add view fn to return averages for a cid
 }
