@@ -37,6 +37,7 @@ contract TSVoteManager {
     }
     
     mapping(bytes32 => LabelsVote) public keyTolabelsVoteStruct;
+    mapping(bytes32 => uint) public cidLabelsVoteCount; 
     bytes32[] public labelsVoteList;
     
     struct LabelsVoteInput {
@@ -60,11 +61,11 @@ contract TSVoteManager {
     // Public view functions
     /////////////////
     
-    function getVoterCount() public view returns(uint voterCount) {
+    function getVoterCount() external view returns(uint voterCount) {
         return voterList.length;
     }
     
-    function getLabelsVoteCount() public view returns(uint labelsVoteCount) {
+    function getLabelsVoteCount() external view returns(uint labelsVoteCount) {
         return labelsVoteList.length;
     }
     
@@ -76,14 +77,27 @@ contract TSVoteManager {
         return keyTolabelsVoteStruct[_key].key == _key;
     }
     
-    function getVoterLabelVotesCount (address _voterAddress) public view returns(uint labelsVoteCount) {
+    function getVoterLabelsVoteCount(address _voterAddress) external view returns(uint labelsVoteCount) {
         require (isVoter(_voterAddress), "No voter exists for this address");
         return addresstoVoterStruct[_voterAddress].labelsVoteKeys.length;
     }
     
-    function getVotersLabelsVoteAtIndex (address _voterAddress, uint _row) public view returns(bytes32 key) {
+    function getVotersLabelsVoteAtIndex(address _voterAddress, uint _row) external view returns(bytes32 key) {
         require (isVoter(_voterAddress), "No voter exists for this address");
         return addresstoVoterStruct[_voterAddress].labelsVoteKeys[_row];
+    }
+
+    function getLabelsVoteKeys(bytes32 _cid) external view returns(bytes32[] memory keys) {
+        require (cidLabelsVoteCount[_cid] > 0, "No votes for this cid");
+        bytes32[] memory labelsVoteKeys = new bytes32[](cidLabelsVoteCount[_cid]);
+        uint counter = 0;
+        for (uint i = 0; i < labelsVoteList.length; i++) {
+            if (keyTolabelsVoteStruct[labelsVoteList[i]].cid == _cid) {
+                labelsVoteKeys[counter] = labelsVoteList[counter];
+                counter++;
+            }
+        }
+        return labelsVoteKeys;
     }
     
     /////////////////
@@ -115,6 +129,7 @@ contract TSVoteManager {
                 });
             if (!isExistingVote) {
                 labelsVoteList.push(key);
+                cidLabelsVoteCount[_labelsVoteInputs[i].cid]++;
                 addresstoVoterStruct[msg.sender].labelsVoteKeys.push(key);
                 emit NewLabelsVote(msg.sender, key);
             }
@@ -124,6 +139,4 @@ contract TSVoteManager {
         }
         return true;
     }
-    
-    // TODO - add view fn to return averages for a cid
 }
