@@ -47,10 +47,7 @@ contract TSVoteManager is Ownable {
         uint8 disturbing;
         uint8 hate;
     }
-    
-    // The content ID of the images directory
-    bytes32 public imagesDirCid;
-    
+        
     /////////////////
     // Events
     /////////////////
@@ -72,25 +69,31 @@ contract TSVoteManager is Ownable {
     }
     
     function isVoter(address _voterAddress) public view returns(bool) {
-        return addresstoVoterStruct[_voterAddress].voterAddress == _voterAddress;
+        return _voterAddress != address(0) && addresstoVoterStruct[_voterAddress].voterAddress == _voterAddress;
     }
     
     function isLabelsVote(bytes32 _key) public view returns(bool) {
+        if (keyTolabelsVoteStruct[_key].key == 0) {
+            return false;
+        }
         return keyTolabelsVoteStruct[_key].key == _key;
     }
     
-    function getVoterLabelsVoteCount (address _voterAddress) external view returns(uint labelsVoteCount) {
-        require (isVoter(_voterAddress), "No voter exists for this address");
-        return addresstoVoterStruct[_voterAddress].labelsVoteKeys.length;
+    function getVoterLabelsVoteCount (address _voterAddress) external view returns(uint labelsVoteCount, bool error) {        
+        if (addresstoVoterStruct[_voterAddress].voterAddress == address(0)) {
+            return (0, true);
+        }
+        return (addresstoVoterStruct[_voterAddress].labelsVoteKeys.length, false);
     }
     
     function getVotersLabelsVoteAtIndex (address _voterAddress, uint _row) external view returns(bytes32 key) {
-        require (isVoter(_voterAddress), "No voter exists for this address");
+        if (addresstoVoterStruct[_voterAddress].voterAddress == address(0)) {
+            return 0;
+        }
         return addresstoVoterStruct[_voterAddress].labelsVoteKeys[_row];
     }
 
     function getLabelsVoteKeys (bytes32 _cid) external view returns(bytes32[] memory keys) {
-        require (cidLabelsVotesCount[_cid] > 0, "No votes for this cid");
         bytes32[] memory labelsVoteKeys = new bytes32[](cidLabelsVotesCount[_cid]);
         uint counter = 0;
         for (uint i = 0; i < labelsVoteList.length; i++) {
@@ -105,12 +108,7 @@ contract TSVoteManager is Ownable {
     /////////////////
     // State changing functions
     /////////////////
-    
-    function setImagesDirCid(bytes32 _cid) external onlyOwner returns(bool success) {
-        imagesDirCid = _cid;
-        return true;
-    }
-    
+        
     function createVoter() external returns(bool success) {
         require(!isVoter(msg.sender), "Voter already exists");
         addresstoVoterStruct[msg.sender].voterAddress = msg.sender;
